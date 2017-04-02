@@ -1,5 +1,6 @@
 import itertools
 
+i = 0
 class Board:
     def __init__(self, state=None):
         self.state = state or [" "]*9
@@ -63,20 +64,24 @@ class TTT():
         assert chr in ["X", "O"]
         return "X" if chr == "O" else "O"
 
-
+    #TODO
+    def evaluate_score(self):
+        pass
 class Node:
-    def __init__(self, board, chr="O"):
+    def __init__(self, board, chr="O", parent=None):
         self.board = board
         self.chr = chr
         self.childCr = TTT.swap_chr(chr)
         self.winner = TTT.get_winner(board)
         self.scoreX = (self.winner == "X") * 1
         self.scoreO = (self.winner == "O") * 1
+        self.parent = parent
+
 
         if self.winner:
             self.children = []
         else:
-            self.children = [Node(b, self.childCr) for b in TTT.get_pos_next_moves(board, self.childCr)]
+            self.children = [Node(b, self.childCr, self) for b in TTT.get_pos_next_moves(board, self.childCr)]
 
     def __getitem__(self, item):
         return self.children[item]
@@ -86,14 +91,27 @@ class Node:
             return self
         return max([child.find_best_child(scoreFN) for child in self.children], key=scoreFN)
 
-    def find_all_winners(self, tail=None):
-        if self.scoreX == 1:
-            return self
+    def find_all_winners(self):
+        if not self.children and self.scoreX == 1:
+            yield self
+        else:
+            for child in self.children:
+                yield from child.find_all_winners()
 
-        ret = [child.find_all_winners() for child in self.children]
-        #TODO Flatten
-        return ret
+    def find_all_abs_children(self):
+        if not self.children:
+            yield self
+        else:
+            for child in self.children:
+                yield from child.find_all_abs_children()
 
+    def traverse_parents(self):
+        cur_node = self
+
+        while cur_node.parent:
+            yield cur_node
+            cur_node = cur_node.parent
+        yield cur_node
 
 b1 = Board()
 
@@ -108,9 +126,4 @@ print(len(n1.children))
 
 
 #child = n1.find_best_child(lambda x: x.scoreX - len(x.board))
-winners = n1.find_all_winners()
-
-print(winners)
-print(len(winners))
-print(winners[0].board)
-
+bottoms = list(n1.find_all_abs_children())
